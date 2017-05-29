@@ -18,4 +18,9 @@ cabal.sandbox.config
 .stack-work/
 cabal.project.local
 .HTF/
+
 .botid
+*.log
+env
+*.pyc
+.spawn
