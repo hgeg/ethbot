@@ -63,7 +63,9 @@ def check_price():
             with open('env', 'wb') as env_file:
                 pickle.dump(environ, env_file)
             time.sleep(interval)
-        except: pass
+        except:
+            with open('check.log','a') as ef:
+                ef.write(repr(e) + '\n')
 
 app = Flask(__name__)
 app.debug = True
@@ -81,17 +83,18 @@ def handle_message():
         update = json.loads(request.data)
         msgc = update['message']['text']
         chid = update['message']['chat']['id']
-        if msgc.startswith('/setalarm'):
+        if msgc.startswith('/setalarm '):
             akey, aid, av = aformat.search(msgc).group(0,1,2) 
             alarms[akey] = (aid, float(av))
             chats[akey] = chats.get(akey,set([])) | set([chid])
             requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'alarm set for "price %s %s"'%(aid, av)})
-        if msgc=='/price':
+        elif msgc=='/price':
             requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'price: %f'%last_price})
         return 'ok'
     except Exception as e:
         with open('error.log','a') as ef:
-            ef.write(repr(e))
+            ef.write(repr(update) + '\n')
+            ef.write(repr(e) + '\n')
 
 if __name__ == '__main__':
     #set webhook
