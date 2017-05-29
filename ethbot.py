@@ -42,7 +42,7 @@ except Exception as e:
 
 def check_price():
     global environ, closing
-    interval = 10
+    interval = 20
     while True:
         try:
             #get eth price
@@ -57,13 +57,15 @@ def check_price():
                     del chats[key]
                     del alarms[key]
             #update interval
-            interval = min(interval+1, 15) if last_price==environ['last_price'] else max(interval-1, 5)
+            interval = min(interval+1, 30) if last_price==environ['last_price'] else max(interval-1, 10)
             #save data
             environ = {'offset':offset, 'last_price':last_price, 'alarms':alarms.container, 'chats':chats.container}
             with open('env', 'wb') as env_file:
                 pickle.dump(environ, env_file)
+            with open('check.log','a') as ef:
+                ef.write('price' + str(last_price) + '\n')
             time.sleep(interval)
-        except:
+        except Exception as e:
             with open('check.log','a') as ef:
                 ef.write(repr(e) + '\n')
 
@@ -73,7 +75,7 @@ app.wsgi_app = DebuggedApplication(app.wsgi_app, True)
 
 @app.route('/ethbot/')
 def index():
-    return str(last_price)
+    return str(environ['last_price'])
 
 @app.route('/ethbot/%s'%BOT_ID,methods=['POST'])
 def handle_message():
@@ -89,7 +91,7 @@ def handle_message():
             chats[akey] = chats.get(akey,set([])) | set([chid])
             requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'alarm set for "price %s %s"'%(aid, av)})
         elif msgc=='/price':
-            requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'price: %f'%last_price})
+            requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'price: %f'%environ['last_price']})
         return 'ok'
     except Exception as e:
         with open('error.log','a') as ef:
