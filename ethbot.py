@@ -62,8 +62,6 @@ def check_price():
             environ = {'offset':offset, 'last_price':last_price, 'alarms':alarms.container, 'chats':chats.container}
             with open('env', 'wb') as env_file:
                 pickle.dump(environ, env_file)
-            with open('check.log','a') as ef:
-                ef.write('price' + str(last_price) + '\n')
             time.sleep(interval)
         except Exception as e:
             with open('check.log','a') as ef:
@@ -90,7 +88,7 @@ def handle_message():
             alarms[akey] = (aid, float(av))
             chats[akey] = chats.get(akey,set([])) | set([chid])
             requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'alarm set for "price %s %s"'%(aid, av)})
-        elif msgc=='/price':
+        elif msgc.startswith('/price'):
             requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'price: %f'%environ['last_price']})
         return 'ok'
     except Exception as e:
