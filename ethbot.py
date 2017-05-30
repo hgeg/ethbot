@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#-*- coding: utf-8 -*-
 from flask import Flask, Response, request, redirect, jsonify
 from flup.server.fcgi import WSGIServer
 from werkzeug.debug import DebuggedApplication
@@ -9,6 +10,11 @@ try:
     import cPickle as pickle
 except:
     import pickle
+
+try:
+        UNICODE_EXISTS = bool(type(unicode))
+except NameError:
+        unicode = lambda s: str(s)
 
 HOST_STR = "https://orkestra.co/ethbot/%s"
 BOT_ID = open('.botid').read().strip()
@@ -52,7 +58,7 @@ def check_price():
                 if TYPES[alarm[0]](last_price, alarm[1]):
                     #find the users with alarm and notify them
                     for chat in chats[key]:
-                        requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chat,'text':'alarm: %f %s %f'%(last_price, alarm[0], alarm[1])})
+                        requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chat,'text':unicode.encode(u'alarm: %f %s %f 🔥🔥‼️📈📊‼️🔔📢🔥🔥'%(last_price, alarm[0], alarm[1]), 'utf-8')})
                     #remove the alarm
                     del chats[key]
                     del alarms[key]
@@ -62,10 +68,11 @@ def check_price():
             environ = {'offset':offset, 'last_price':last_price, 'alarms':alarms.container, 'chats':chats.container}
             with open('env', 'wb') as env_file:
                 pickle.dump(environ, env_file)
-            time.sleep(interval)
         except Exception as e:
             with open('check.log','a') as ef:
                 ef.write(repr(e) + '\n')
+        finally:
+            time.sleep(interval)
 
 app = Flask(__name__)
 app.debug = True
@@ -95,6 +102,7 @@ def handle_message():
         with open('error.log','a') as ef:
             ef.write(repr(update) + '\n')
             ef.write(repr(e) + '\n')
+        return 'fail'
 
 if __name__ == '__main__':
     #set webhook
