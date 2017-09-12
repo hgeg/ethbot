@@ -24,7 +24,7 @@ TYPES = {
 }
 CUR_SYMS = {
     "usd": "$",
-    "btc": "฿"
+    "btc": "฿".decode('utf-8')
 }
 closing = threading.Event()
 
@@ -67,12 +67,12 @@ def check_price():
                 if TYPES[alarm[0]](last_prices[alarm[2]], alarm[1]):
                     #find the users with alarm and notify them
                     for chat in chats[key]:
-                        requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chat,'text':unicode.encode(u'alarm: %s%f %s %s%f 🔥🔥‼️📈📊‼️🔔📢🔥🔥'%(CUR_SYMS[alarm[2], last_prices[alarm[2]], alarm[0], CUR_SYMS[alarm[2], alarm[1]), 'utf-8')})
+                        requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chat,'text':unicode.encode(u'alarm: %s%f %s %s%f 🔥🔥‼️📈📊‼️🔔📢🔥🔥'%(CUR_SYMS[alarm[2]], last_prices[alarm[2]], alarm[0], CUR_SYMS[alarm[2]], alarm[1]), 'utf-8')})
                     #remove the alarm
                     del chats[key]
                     del alarms[key]
             #update interval
-            interval = min(interval+1, 30) if last_price==environ['last_price'] else max(interval-1, 10)
+            interval = min(interval+1, 30) if last_prices['usd']==environ['last_price_usd'] else max(interval-1, 10)
             #save data
             environ = {'offset':offset, 'last_price_btc':last_prices['btc'], 'last_price_usd':last_prices['usd'], 'alarms':alarms.container, 'chats':chats.container}
             with open('env', 'wb') as env_file:
