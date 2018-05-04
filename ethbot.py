@@ -20,13 +20,20 @@ HOST_STR = "https://orkestra.co/ethbot/%s"
 BOT_ID = open('.botid').read().strip()
 TYPES = {
     ">": (lambda x, y: x>y),
-    "<": (lambda x, y: x<y)
+    "<": (lambda x, y: x<y),
 }
 CUR_SYMS = {
     "usd": "$",
     "btc": "฿".decode('utf-8')
 }
+
+ALARM_FORMAT = re.compile(r'([<>])(\d+(?:\.\d+)*) (btc|usd)')
 closing = threading.Event()
+
+def send(to, msg):
+    requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,
+                  params = {'chat_id':to, 'text':unicode.encode(msg, 'utf-8')}
+                )
 
 #retrieve previous data
 try:
@@ -67,7 +74,7 @@ def check_price():
                 if TYPES[alarm[0]](last_prices[alarm[2]], alarm[1]):
                     #find the users with alarm and notify them
                     for chat in chats[key]:
-                        requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chat,'text':unicode.encode(u'alarm: %s%f %s %s%f 🔥🔥‼️📈📊‼️🔔📢🔥🔥'%(CUR_SYMS[alarm[2]], last_prices[alarm[2]], alarm[0], CUR_SYMS[alarm[2]], alarm[1]), 'utf-8')})
+                        send(chat, u'ATTENTION: %s%f %s %s%f 🔥🔥‼️📈📊‼️🔔📢🔥🔥'%(CUR_SYMS[alarm[2]],last_prices[alarm[2]], alarm[0], CUR_SYMS[alarm[2]], alarm[1]))
                     #remove the alarm
                     del chats[key]
                     del alarms[key]
@@ -78,6 +85,7 @@ def check_price():
             with open('env', 'wb') as env_file:
                 pickle.dump(environ, env_file)
         except Exception as e:
+            interval = 30
             with open('check.log','a') as ef:
                 ef.write(repr(e) + '\n')
         finally:
@@ -89,25 +97,28 @@ app.wsgi_app = DebuggedApplication(app.wsgi_app, True)
 
 @app.route('/ethbot/')
 def index():
-    return str(environ['last_price_btc'])
+    return '$%f\n฿%f'%(environ['last_price_usd'], environ['last_price_btc'])
 
 @app.route('/ethbot/%s'%BOT_ID,methods=['POST'])
 def handle_message():
-    aformat = re.compile(r'([<>])(\d+(?:\.\d+)*) (btc|usd)')
-    rformat = re.compile(r'([%])([+-]\d+(?:\.\d+)*)')
     try:
         update = json.loads(request.data)
+        assert("channel_post" not in update)
         msgc = update['message']['text']
         chid = update['message']['chat']['id']
         if msgc.startswith('/setalarm '):
-            akey, aid, av, cur= aformat.search(msgc).group(0,1,2,3) 
+            akey, aid, av, cur= ALARM_FORMAT.search(msgc).group(0,1,2,3) 
             alarms[akey] = (aid, float(av), cur)
             chats[akey] = chats.get(akey,set([])) | set([chid])
-            requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'alarm set for "price %s %s%s"'%(aid, CUR_SYMS[cur], av)})
-        elif msgc.startswith('/price'):
-            requests.get('https://api.telegram.org/%s/sendMessage'%BOT_ID,params={'chat_id':chid,'text':'$%f\n฿%f'%(environ['last_price_usd'], environ['last_price_btc'])})
+            send(chid,'alarm set for "price %s %s%s"'%(aid, CUR_SYMS[cur], av))
+        elif msgc== '/price':
+            send(chid,'$%f\n฿%f'%(environ['last_price_usd'], environ['last_price_btc']))
+        else: 
+            send(chid,'I don\'t understand.')
         return 'ok'
+    except AssertionError as e: return
     except Exception as e:
+        send(chid,'I don\'t understand.')
         with open('error.log','a') as ef:
             ef.write(repr(update) + '\n')
             ef.write(repr(e) + '\n')
