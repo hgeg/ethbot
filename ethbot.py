@@ -74,7 +74,9 @@ def check_price():
                 if TYPES[alarm[0]](last_prices[alarm[2]], alarm[1]):
                     #find the users with alarm and notify them
                     for chat in chats[key]:
-                        send(chat, u'ATTENTION: %s%f %s %s%f 🔥🔥‼️📈📊‼️🔔📢🔥🔥'%(CUR_SYMS[alarm[2]],last_prices[alarm[2]], alarm[0], CUR_SYMS[alarm[2]], alarm[1]))
+                        current = ('%s%f'%(CUR_SYMS[alarm[2]],last_prices[alarm[2]])).rstrip('0').rstrip('.')
+                        trigger = ('%s%f'%(CUR_SYMS[alarm[2]],alarm[1])).rstrip('0').rstrip('.')
+                        send(chat, u'🔥🔥 %s %s %s🔥🔥 📈📢 '%(current, alarm[0], trigger))
                     #remove the alarm
                     del chats[key]
                     del alarms[key]
@@ -86,9 +88,11 @@ def check_price():
                 pickle.dump(environ, env_file)
         except Exception as e:
             interval = 30
+            print repr(e)
             with open('check.log','a') as ef:
                 ef.write(repr(e) + '\n')
         finally:
+            print 'sleeping...'
             time.sleep(interval)
 
 app = Flask(__name__)
@@ -103,30 +107,28 @@ def index():
 def handle_message():
     try:
         update = json.loads(request.data)
-        assert("channel_post" not in update)
         msgc = update['message']['text']
         chid = update['message']['chat']['id']
         if msgc.startswith('/setalarm '):
             akey, aid, av, cur= ALARM_FORMAT.search(msgc).group(0,1,2,3) 
             alarms[akey] = (aid, float(av), cur)
             chats[akey] = chats.get(akey,set([])) | set([chid])
-            send(chid,'alarm set for "price %s %s%s"'%(aid, CUR_SYMS[cur], av))
+            send(chid,u'alarm set for "price %s %s%s"'%(aid, CUR_SYMS[cur], av))
         elif msgc== '/price':
-            send(chid,'$%f\n฿%f'%(environ['last_price_usd'], environ['last_price_btc']))
+            usd_price = ('%f'%environ['last_price_usd']).rstrip('0').rstrip('.')
+            btc_price = ('%f'%environ['last_price_btc']).rstrip('0').rstrip('.')
+            send(chid,u'$%s\n฿%s'%(usd_price, btc_price))
         else: 
-            send(chid,'I don\'t understand.')
+            send(chid,u'I don\'t understand.')
         return 'ok'
-    except AssertionError as e: return
     except Exception as e:
-        send(chid,'I don\'t understand.')
         with open('error.log','a') as ef:
-            ef.write(repr(update) + '\n')
             ef.write(repr(e) + '\n')
         return 'fail'
 
 if __name__ == '__main__':
     #set webhook
-    requests.post('https://api.telegram.org/%s/setWebhook'%BOT_ID,params={'url':HOST_STR%BOT_ID})
+    #requests.post('https://api.telegram.org/%s/setWebhook'%BOT_ID,params={'url':HOST_STR%BOT_ID})
 
     #run price checker
     t = threading.Thread(target=check_price)
